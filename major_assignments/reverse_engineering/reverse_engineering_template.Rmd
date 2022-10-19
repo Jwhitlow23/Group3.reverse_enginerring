@@ -1,0 +1,335 @@
+---
+title: "Reverse Engineering Project"
+author: William Beltran, Stephanie Quinn, Sarah Siock and Jamille Whitlow!!!
+date: 2022/10/8
+output:
+  html_document:
+    theme: cerulean
+    highlight: pygments
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction 
+
+In this notebook, we are reverse engineering the story, "In North Carolina, Black Voters' Mail-In Ballots Much More Likely to Be Rejected Than Those From Any Other Races" (https://www.propublica.org/article/in-north-carolina-black-voters-mail-in-ballots-much-more-likely-to-be-rejected-than-those-from-any-other-race)
+
+## Load libraries
+
+Loading required libraries for this analysis.
+
+```{r echo=FALSE, message=FALSE}
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(dplyr)
+```
+
+## Load and Cleaning Data
+
+In this section, describe the source of the data, write a basic data dictionary for data you are working with, and discuss any caveats or issues you discovered working with this data. 
+
+```{r}
+# Load required data
+
+nc_absentee_data <- read_csv("data/absentee_20181106.csv")
+
+nc_absentee_data
+
+glimpse(nc_absentee_data)
+
+problems(nc_absentee_data)
+# Path to data should be loaded from folder "data" i.e. read_csv("data/name_of_data.csv")
+
+# Clean required data and prepare for analysis if needed. 
+
+
+```
+```{r}
+nc_absentee_data <- read_csv("data/absentee_20181106.csv", guess_max=2111797)
+```
+```{r}
+nc_absentee_data
+```
+
+## Sentences to Engineer
+In this notebook, we are reverse engineering five sentences from the story.
+
+### Sentence 1
+
+* **Sentence text**: [Vance County rejected more than a quarter of the 110 mail-in ballots returned by Black voters. In contrast, only five ballots out of 102 submitted by white voters were rejected.]
+* **Analysis summary**: [Write up two to three sentences describing the results of your analysis.  Were you able to confirm the finding? If not, why not?]
+We were able to partially confirm the findings. We filtered for Black voters in Vance County. Then, to find the total number of Black voters in Vance County who requested mail ballots, we filtered for "MAIL" as the ballot request type. We got 169 voters.Then we used n_distinct to find the number of distinct voter registration numbers to see if we could get closer to ProPublica's number of Black voters in Vance County who submitted mail-in ballots (110). We did get closer - 156. But we still couldn't get down to 110. 
+
+To find the number of Black voters' mail-in ballots that were rejected, we filtered out accepted ballots using !=. We got 42 rejected mail-in ballots. To find the proportion of Black voters' ballots that were rejected, we divided 42 by 156. That shows a 26.9% rejection rate, which fits the authors' statement that more than a quarter of Black voters' mail-in ballots were rejected.
+
+[Since our numbers are slightly higher than the authors', we thought the authors filtered out something that we didn't. We tried identifying duplicates and found that some voters returned multiple mail-in ballots that were rejected. We attempted to find the most recent mail-in ballot for each voter using max_date, but we weren't sure how to do this.]
+
+We repeated the same methodology for white voters in Vance County. Initially, we found that 8 out of 122 of white voters' mail-in ballots were rejected. When we used n_distinct, we found that 6 out of 117 white voters' mail-in ballots were rejected.
+
+
+We filtered for Vance County and Black/African American voters, and for voters who requested mail-in ballots.
+```{r}
+# Put code to reverse engineer sentence here
+nc_absentee_data %>% 
+  filter(county_desc == "VANCE", race == "BLACK or AFRICAN AMERICAN") %>% 
+  filter(ballot_req_type == "MAIL")
+```
+
+We used n_distinct to see if we could get closer to ProPublica's number of ballots: 110.
+```{r}
+# filter
+nc_absentee_data %>% 
+  filter(county_desc == "VANCE", race == "BLACK or AFRICAN AMERICAN") %>% 
+  filter(ballot_req_type == "MAIL")%>%
+  group_by(voter_reg_num) %>% 
+  summarize(distinct_reg_numbers = n_distinct(voter_reg_num))
+```
+
+To figure out how many Black voters' mail-in ballots were rejected, we filtered out accepted and one-stop ballots. In North Carolina, one-stop early voting enables voters to cast a ballot early in person. Since these votes are cast in person, we filtered them out.
+```{r}
+
+nc_absentee_data %>% filter(county_desc == "VANCE" & race == "BLACK or AFRICAN AMERICAN") %>% group_by(voter_reg_num) %>% 
+summarize(distinct_reg_num = n_distinct(voter_reg_num))
+
+nc_absentee_data %>% 
+  filter(county_desc == "VANCE" & race == "BLACK or AFRICAN AMERICAN" ) %>% 
+  filter(ballot_rtn_status != "ACCEPTED") %>% 
+  filter(ballot_req_type != "ONE-STOP")
+```
+We used n_distinct to try to get closer to ProPublica's number of rejected ballots. Either way, we found that just over a quarter of Black voters' mail-in ballots were rejected in Vance County.
+```{r}
+nc_absentee_data %>% 
+  filter(county_desc == "VANCE" & race == "BLACK or AFRICAN AMERICAN" ) %>% 
+  filter(ballot_rtn_status != "ACCEPTED") %>% 
+  filter(ballot_req_type != "ONE-STOP") %>% 
+  group_by(voter_reg_num) %>% 
+  summarize(distinct_reg_numbers = n_distinct(voter_reg_num))
+```
+
+WHITE VOTERS
+We filtered for Vance County and white voters, and for voters who requested mail-in ballots.
+```{r}
+nc_absentee_data %>% 
+  filter(county_desc == "VANCE" & race == "WHITE") %>% 
+  filter(ballot_req_type == "MAIL")
+```
+We used n_distinct to see if we could get closer to ProPublica's number of ballots: 102.
+=======
+
+```{r}
+nc_absentee_data %>% 
+  filter(county_desc == "VANCE" & race == "WHITE") %>% 
+  filter(ballot_req_type == "MAIL")%>%
+  group_by(voter_reg_num) %>% 
+  summarize(distinct_reg_numbers = n_distinct(voter_reg_num))
+```
+
+To figure out how many white voters' mail-in ballots were rejected, we filtered out accepted and one-stop ballots. Then we used n_distinct like we did for the number of Black voters. We got 6 ballots rather than 5.
+```{r}
+nc_absentee_data %>% 
+  filter(county_desc == "VANCE" & race == "WHITE" ) %>% 
+  filter(ballot_rtn_status != "ACCEPTED") %>% 
+  filter(ballot_req_type != "ONE-STOP") %>% 
+  group_by(voter_reg_num) %>% 
+  summarize(distinct_reg_numbers = n_distinct(voter_reg_num))
+```
+
+
+# Display results of code below this codeblock
+
+=======
+
+### Sentence 2
+
+* **Sentence text**: In 73 out of 92 counties where Black voters returned at least one mail-in ballot, those ballots were rejected at a higher rate than those returned by white voters. 
+* **Analysis summary**: We first found 94 counties where black voters returned at least one mail-in ballot. In order to find the rate of rejection in each county we wrote code to find the total number of ballots and number of rejected for Black voter and white voters. For both Black voters and white voters we merged the tables with the rejected and the total votes. We then used transform to divide the number of rejected ballots by the total and created a new column using summarize. In counties where the percent of black rejected ballots divided by percent of white rejected ballots was more than one, Black voters ballots were rejected at a higher rate than white voters' ballots. We then counted the number of times this occurred which was 75. 
+
+
+
+Explanation for first code block: We tried to confirm that there were 92 counties where Black voters returned at least one mail-in ballot by filtering for race and ballot type and counting the number of Black voters' mail-in ballots by county. We got 94. We checked for zero counts using arrange, but it showed the lowest value as 1.
+=======
+
+```{r}
+# Counties where Black voters turned in at least one mail-in ballot
+nc_absentee_data %>% 
+  filter(race == "BLACK or AFRICAN AMERICAN" & ballot_req_type == "MAIL") %>% 
+  group_by(county_desc) %>% 
+  summarize(count = n()) %>% 
+  arrange(count)
+```
+
+```{r}
+# rejected mail-in ballots for Black voters in each county
+nc_absentee_data %>% 
+  filter(race == "BLACK or AFRICAN AMERICAN" & ballot_req_type == "MAIL") %>% 
+  filter(ballot_rtn_status != "ACCEPTED") %>% 
+  filter(ballot_req_type != "ONE-STOP") %>% 
+  filter(ballot_rtn_status != "SPOILED") %>% 
+  group_by(county_desc) %>% 
+  summarize(count = n())
+
+#total mail in ballots for black voters in each county
+nc_absentee_data %>% filter(race == "BLACK or AFRICAN AMERICAN") %>%
+filter(ballot_req_type == "MAIL") %>%  group_by(county_desc) %>% 
+summarize(count) %>% 
+summarize()
+
+
+
+```
+```{r}
+# naming new column
+black_voters_mail_in <- nc_absentee_data %>% 
+  filter(race == "BLACK or AFRICAN AMERICAN" & ballot_req_type == "MAIL") %>% 
+  group_by(county_desc) %>% 
+  summarize(black_mail_in_votes = n())
+```
+
+```{r}
+# naming other new column
+black_voters_rejected <- nc_absentee_data %>% 
+  filter(race == "BLACK or AFRICAN AMERICAN" & ballot_req_type == "MAIL") %>% 
+  filter(ballot_rtn_status != "ACCEPTED") %>% 
+  filter(ballot_req_type != "ONE-STOP") %>% 
+  filter(ballot_rtn_status != "SPOILED") %>% 
+  group_by(county_desc) %>% 
+  summarize(black_rejected_mail_in = n())
+
+```
+```{r}
+# joining total and rejected Black mail-in ballot info
+# calculated percent Black mail-in ballots rejected
+black_voters <- black_voters_mail_in %>% 
+  left_join(black_voters_rejected, by="county_desc") %>% 
+  transform(black_percent_rejected = black_rejected_mail_in / black_mail_in_votes)
+
+black_voters
+```
+```{r}
+# Counties where white voters cast at least one mail-in ballot
+white_voters_mail_in <- nc_absentee_data %>% 
+  filter(race == "WHITE" & ballot_req_type == "MAIL") %>% 
+  group_by(county_desc) %>% 
+  summarize(white_mail_in_votes = n())
+
+white_voters_mail_in
+```
+
+```{r}
+# Number of white mail-in ballots rejected per county
+white_voters_rejected <- nc_absentee_data %>% 
+  filter(race == "WHITE" & ballot_req_type == "MAIL") %>% 
+  filter(ballot_rtn_status != "ACCEPTED") %>% 
+  filter(ballot_req_type != "ONE-STOP") %>% 
+  filter(ballot_rtn_status != "SPOILED") %>% 
+  group_by(county_desc) %>% 
+  summarize(white_rejected_mail_in = n())
+
+white_voters_rejected
+```
+
+```{r}
+# joining total and rejected white mail-in ballot info
+# calculating percent white mail-in ballots rejected
+white_voters <- white_voters_mail_in %>% 
+  left_join(white_voters_rejected, by="county_desc") %>% 
+  transform(white_percent_rejected = white_rejected_mail_in / white_mail_in_votes)
+```
+
+```{r}
+# joining data for white and black voters
+# created a column comparing black and white percent rejected
+# arranged in descending order of rejection rate to county where black mail-in ballots were rejected more often than white mail-in ballots
+combined_voters <- black_voters %>% 
+  left_join(white_voters, by="county_desc") %>% 
+  transform(total_rejection_rate = black_percent_rejected / white_percent_rejected) %>% 
+  arrange(desc(total_rejection_rate))
+
+combined_voters
+```
+
+### Sentence 3
+
+* **Sentence text**: Guilford County, the third-most populous county in North Carolina, rejected the largest number of mail-in ballots by Black voters statewide: 177. The rejection rate for Black voters, at 16.5%, was three times as high as the rejection rate for white voters, 5.5%, putting the county largely in line with the rest of the state.
+* **Analysis summary**: First, we confirmed that Guilford rejected the most mail-in ballots by writing code to rank the counties in order of Black voters rejected ballots. We then wrote code to get the number of Black mail in ballots and then the number rejected. We then divided the number of Black mail in by the number rejected. We repeated to the same process for white voters. We got a 16.6% rejection rate for Black voters and a 5.5% rejection rate for white voters. 
+
+```{r}
+# Put code to reverse engineer sentence here
+
+# Display results of code below this codeblock
+
+#Rejected ballots in each county to confirm guilford was the highest
+  nc_absentee_data %>% filter(race == "BLACK or AFRICAN AMERICAN") %>%  filter(ballot_req_type == "MAIL") %>%
+filter(ballot_rtn_status != "ACCEPTED") %>% 
+  filter(ballot_rtn_status != "SPOILED") %>% 
+    group_by(county_desc) %>% 
+     summarize(count = n()) %>% 
+    arrange(desc(count))
+
+#number of Black mail in in Guilford 
+  nc_absentee_data %>% filter(county_desc == "GUILFORD", race == "BLACK or AFRICAN AMERICAN") %>% 
+  filter(ballot_req_type == "MAIL") %>%
+  filter(ballot_rtn_status != "SPOILED") %>% 
+  summarize(count = n())
+
+#number of Black mail in rejected in Guilford
+  nc_absentee_data %>%  filter(county_desc == "GUILFORD", race == "BLACK or AFRICAN AMERICAN") %>% 
+  filter(ballot_req_type == "MAIL") %>%
+  filter(ballot_rtn_status != "ACCEPTED") %>% 
+  filter(ballot_rtn_status != "SPOILED") %>% 
+  summarize(count = n())
+
+  
+  #White mail in ballots
+  nc_absentee_data %>%  filter(county_desc == "GUILFORD", race == "WHITE") %>% 
+  filter(ballot_req_type == "MAIL") %>%
+  filter(ballot_rtn_status != "SPOILED") %>% 
+  summarize(count = n())
+
+  #number of white mail in ballots rejected
+  nc_absentee_data %>%  filter(county_desc == "GUILFORD", race == "WHITE") %>% 
+  filter(ballot_req_type == "MAIL") %>%
+  filter(ballot_rtn_status != "ACCEPTED") %>% 
+  filter(ballot_rtn_status != "SPOILED") %>% 
+  summarize(count = n())
+ 
+ 
+```
+
+### Sentence 4
+
+* **Sentence text**: [Paste in sentence to engineer here]
+* **Analysis summary**: [Write up two to three sentences describing the results of your analysis.  Were you able to confirm the finding? If not, why not?]
+
+```{r}
+# Put code to reverse engineer sentence here
+
+# Display results of code below this codeblock
+
+```
+
+### Sentence 5
+
+* **Sentence text**: [Paste in sentence to engineer here]
+* **Analysis summary**: [Write up two to three sentences describing the results of your analysis.  Were you able to confirm the finding? If not, why not?]
+
+```{r}
+# Put code to reverse engineer sentence here
+
+# Display results of code below this codeblock
+
+```
+
+### Will's Section
+
+
+## 
+
+-30-
