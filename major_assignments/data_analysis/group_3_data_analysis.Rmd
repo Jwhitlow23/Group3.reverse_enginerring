@@ -1,0 +1,165 @@
+---
+title: "group_3_data_analysis"
+group: Will Beltran, Sarah Siock, Jamille Whitlow and Stephanie Quinn
+output: html_document
+date: "2022-11-12"
+---
+
+We decided to use the 2021 and 2022 datasets on politicians’ election tweets. We plan to merge it with data on campaign contributions.
+
+Limitations or flaws:
+The data does not contain the number of followers for each account. Nor does it contain the number of likes, retweets or replies for each tweet.
+
+If we wanted to analyze the impact of particular tweets or tweet terms on engagement with politicians’ Twitter accounts - and if the number of tweets and politicians was manageable enough - we could look up the tweets on Twitter and create a new column to show numbers of likes and retweets. We could do this to compare engagement with tweets using certain phrases or on certain topics.
+
+Things we might not be able to answer (with our current knowledge):
+We’ve only started to dive into the world of text analysis, but we think we’ll have to figure out how to find the incidence of particular words or phrases across tweets in order to answer some of our questions. We were able to use tidytext to find the most common words and bigrams in the data, which will help us select a topic to focus on, but we haven’t figured out how to search for particular words. We attempted to find codes that would allow us to complete this type of analysis and came across the verb grepl. However, none of us were able to run grepl due to it not loading completely. It is possible we did not have the correct package installed to run grepl.
+
+Also, we’re not sure exactly how to measure change in tweeting behavior over time. We checked the data type of the timestamp column and found that it is <dttm>, which we’ve never used before. Are there any tips we should know if we want to measure change over time?
+
+Our exploratory analysis:
+```{r}
+install.packages("tidytext")
+```
+```{r}
+library(tidyverse)
+library(janitor)
+library(tidytext)
+```
+
+```{r}
+# The 2021 tweet dataframe has 12 columns and 557,987 rows, and the 2022 tweet dataframe has 12 columns and 429,093 rows.
+
+tweets_2021 <- read_csv("tweets2021.csv")
+tweets_2022 <- read_csv("tweets_2022.csv")
+tweets_2021
+tweets_2022
+```
+
+```{r}
+# In the 2021 data, Sen. Ted Cruz (R-TX) tweeted the most, with 7,864 tweets. Sen. John Cornyn (R-TX) was close behind, with 6,948 tweets.
+tweets_2021 %>% 
+  group_by(last_name, first_name) %>% 
+  summarize(count = n()) %>% 
+  arrange(desc(count))
+```
+```{r}
+#In 2022, Rep. Don Bacon (R-NE) barely displaced Cruz as top tweeter, with 7,285 tweets. Cruz had one less tweet, with 7,284 tweets.
+tweets_2022 %>% 
+  group_by(last_name, first_name) %>% 
+  summarize(count = n()) %>% 
+  arrange(desc(count))
+
+```
+```{r}
+# The combined 2021 and 2022 dataframe has 987,080 rows and 12 variables.
+combined_tweets <- bind_rows(tweets_2021, tweets_2022)
+```
+```{r}
+#Cruz, Bacon and Cornyn dominated the combined tweet dataframe, at first, second and third most prolific. Sen. Marco Rubio (R-FL) is also a major tweeter. Rep. Pramila Jayapal (D-WA) came in at number 5.
+combined_tweets %>% 
+  group_by(last_name, first_name) %>% 
+  summarize(count = n()) %>% 
+  arrange(desc(count))
+```
+```{r}
+#California, Texas, Florida, New York and Illinois politicians had the highest numbers of tweets in the combined data. These are large states with a lot of House representatives and that have a lot of electoral votes in years of presidential races. Pennsylvania had sixth most numbers of tweets, possibly having to do with being a battleground state.
+combined_tweets %>% 
+  group_by(state) %>% 
+  summarize(count=n()) %>% 
+  arrange(desc(count))
+```
+```{r}
+# Even though the top tweeters are Republicans, Democrats had a larger total number of tweets in the combined data, with 557,830 compared to 426,947 tweets from Republicans. Maybe more Democrats tweet modest amounts, but some Republicans tweet very frequently.
+combined_tweets %>% 
+  group_by(party_id) %>% 
+  summarize(count=n()) %>% 
+  arrange(desc(count))
+```
+```{r}
+#We drew on the text analysis textbook chapter to identify the most common words, preparing the data first.
+combined_tweets <- combined_tweets %>%
+  mutate(content = gsub("http.*","", content))
+
+unique_words <- combined_tweets %>% select(content) %>%
+  unnest_tokens(word, content)
+```
+
+```{r}
+#These words were common, but not very telling. 
+unique_words %>%
+  count(word, sort = TRUE) %>%
+  top_n(25) %>%
+  mutate(word = reorder(word, n))
+```
+```{r}
+#We used stop_words to remove common words like "the" and "is" from our results. We think "Rt" shows that lots of politicians were re-tweeting material, while we think "amp" has to do with tweeting out urls. Politicians are tweeting about legislation ("bill" and "act"), Biden and possibly touting their family values ("families"). Possible issues that stand out from the tweets are healthcare or possibly covid ("health" and "care"), immigration ("border"), infrastructure or the infrastructure bill ("infrastructure"), energy (possibly having to do with the Keystone pipeline or disruptions caused by the Russian invasion of Ukraine - "energy") and inflation ("inflation").
+unique_words %>%
+  anti_join(stop_words) %>%
+  group_by(word) %>%
+  tally(sort=TRUE)
+```
+```{r}
+#Finding common words in 2021 data only. We're not sure why this data appears to be the same as the combined dataframe text analysis. So we decided to find common words in the 2022 data.
+tweets_2021_2 <- tweets_2021 %>%
+  mutate(content = gsub("http.*","", content))
+```
+```{r}
+tweets_2021_2 <- combined_tweets %>% select(content) %>%
+  unnest_tokens(word, content)
+```
+```{r}
+tweets_2021_2 %>%
+  anti_join(stop_words) %>%
+  group_by(word) %>%
+  tally(sort=TRUE)
+
+```
+```{r}
+#Finding common tweets in 2022 data only. This data is different from the combined dataframe text analysis. But we still don't understandwhy the 2022 data don't appear to be taken account of in the text analysis for the combined tweets.
+tweets_2022_2 <- tweets_2022 %>%
+  mutate(content = gsub("http.*","", content))
+```
+```{r}
+tweets_2022_2 <- combined_tweets %>% select(content) %>%
+  unnest_tokens(word, content)
+```
+```{r}
+tweets_2022_2 %>%
+  anti_join(stop_words) %>%
+  group_by(word) %>%
+  tally(sort=TRUE)
+
+
+```
+
+```{r}
+# We also tried a bigram analysis on the combined data, which showed lots of politicians offering their condolences to Rep. Jamie Raskin (D-MD) after he lost his son to suicide a few days before the Jan. 6 insurrection. Were these tweets from the time between Raskin's son's suicide and the insurrection? We were struck that the most common bigrams were not about the insurrection itself. We wondered if the trigrams would show anything different, but we were unable to get the code to work.
+combined_tweets %>%
+  filter(created < '2021-01-01') %>%
+  unnest_tokens(bigram, content, token = "ngrams", n = 2) %>%
+  separate(bigram, c("word1", "word2"), sep = " ") %>%
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word) %>%
+  mutate(bigram = paste(word1, word2, sep=" ")) %>%
+  group_by(bigram) %>%
+  tally(sort=TRUE) %>%
+  mutate(percent = (n/sum(n))*100) %>%
+  top_n(10)
+```
+
+```{r}
+combined_tweets %>%
+  filter(created < '2021-01-01') %>%
+  unnest_tokens(bigram, content, token = "ngrams", n = 3) %>%
+  separate(bigram, c("word1", "word2", "word3"), sep = " ") %>%
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word) %>% 
+  mutate(bigram = paste(word1, word2, word3, sep=" ")) %>%
+  group_by(trigram) %>%
+  tally(sort=TRUE) %>%
+  mutate(percent = (n/sum(n))*100) %>%
+  top_n(10)
+
+```
