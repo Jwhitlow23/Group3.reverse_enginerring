@@ -147,19 +147,167 @@ combined_tweets %>%
   mutate(percent = (n/sum(n))*100) %>%
   top_n(10)
 ```
+ELECTION FRAUD
 
 ```{r}
-combined_tweets %>%
-  filter(created < '2021-01-01') %>%
-  unnest_tokens(bigram, content, token = "ngrams", n = 3) %>%
-  separate(bigram, c("word1", "word2", "word3"), sep = " ") %>%
-  filter(!word1 %in% stop_words$word) %>%
-  filter(!word2 %in% stop_words$word) %>%
-  filter(!word2 %in% stop_words$word) %>% 
-  mutate(bigram = paste(word1, word2, word3, sep=" ")) %>%
-  group_by(trigram) %>%
-  tally(sort=TRUE) %>%
-  mutate(percent = (n/sum(n))*100) %>%
-  top_n(10)
+#How many politicians tweeted keywords about our topic in the time period we are analyzing? Did more Republicans or Democrats tweet about it?
 
+#First, we lowercased the content column to better search the politicians' tweets. Then we filters for terms relevant to election fraud and saved the result as a new dataframe.
+combined_tweets_new <-
+  combined_tweets %>% 
+  mutate(lowercase_content = str_to_lower(content))
+```
+```{r}
+fraud_tweets <- combined_tweets_new %>% 
+filter(str_detect(lowercase_content, "stop the steal|election fraud|voter fraud|ballot harvesting"))
+```
+```{r}
+glimpse(fraud_tweets)
+
+```
+```{r}
+#We got a list of all politicians in the data who authored tweets containing our search terms. In order to do this, we filtered for tweets containing those terms and then used group_by and summarize to show the authors of the tweets in order of how many tweets they tweeted.
+fraud_tweets %>% 
+filter(str_detect(lowercase_content, "election fraud|stop the steal|voter fraud|harvesting|ballot harvesting")) %>% 
+  group_by(first_name, last_name) %>% 
+  summarize(count = n()) %>% 
+  arrange(desc(count))
+```
+```{r}
+#We found the number of tweets containing our search terms that were authored by Republicans by using filter and summarize. There are 365 tweets in the data that contain one of our search terms and were tweeted by Republicans.
+fraud_tweets %>% 
+filter(str_detect(lowercase_content, "election fraud|stop the steal|voter fraud|harvesting|ballot harvesting")) %>% 
+  filter(party_id == "2") %>% 
+  summarize(count = n()) 
+  
+```
+```{r}
+#We followed the same steps as in the previous codeblock, but for Democrats. There are 243 tweets that contain our search terms and were authored by Democrats. 
+fraud_tweets %>% 
+filter(str_detect(lowercase_content, "election fraud|stop the steal|voter fraud|harvesting|ballot harvesting")) %>% 
+  filter(party_id == "1") %>% 
+  summarize(count = n()) 
+```
+```{r}
+#To find the number of Republican politicians responsible for the 365 tweets, we filtered by our search terms and then by party. Then we used group_by and summarize and got a list of Republicans who tweeted on election fraud and how many tweets each one authored. The tibble shows us that there are 110 Republicans on this list.
+fraud_tweets %>% 
+filter(str_detect(lowercase_content, "election fraud|stop the steal|voter fraud|harvesting|ballot harvesting")) %>% 
+  filter(party_id == "2") %>% 
+  group_by(first_name, last_name) %>% 
+  summarize(count = n())
+```
+
+```{r}
+#We repeated the same steps as above for Democrats and got 86 Democrats who tweeted using our search terms. 
+
+fraud_tweets %>% 
+filter(str_detect(lowercase_content, "election fraud|stop the steal|voter fraud|harvesting|ballot harvesting")) %>% 
+  filter(party_id == "1") %>% 
+  group_by(first_name, last_name) %>% 
+  summarize(count = n())
+```
+```{r}
+#One independent also tweeted using our search terms. So, more Republicans than Democrats tweeted about election fraud, but the number of Democrats was significant. We can explore this in future weeks, but we think they were probably debunking election fraud claims. We find it interesting that this many Democrats are tweeting about a topic that was fueled by Republicans and alt-right conspiracies.
+fraud_tweets %>% 
+filter(str_detect(lowercase_content, "election fraud|stop the steal|voter fraud|harvesting|ballot harvesting")) %>% 
+  filter(party_id == "3") %>% 
+  group_by(first_name, last_name) %>% 
+  summarize(count = n())
+```
+
+```{r}
+#What are politicians re-tweeting? Do Democratic politicians retweet from progressive-leaning publications? Do Republican politicians retweet from conservative-leaning ones? Do politicians share ordinary people’s tweets?
+
+retweets <- combined_tweets_new %>% 
+  filter(str_detect(lowercase_content, "rt @"))
+```
+```{r}
+#This code shows the top Republican politicians who retweeted from our list of conservative news outlets. We got 160 Republican politicians who met this criteria. Sen. Ted Cruz (R-TX), Rep. Matt Gaetz (R-FL) and Rep. Jim Jordan (R-OH) were the most prolific tweet authors on this list.
+#In order to find and rank Republican tweet authors, we used str_detect to filter for the conservative publications, filtered again for Republicans, and then used group_by, summarize and arrange.
+retweets %>% 
+  filter(str_detect(lowercase_content, "@newsmax|@oann|@foxnews|@realdailywire|@breitbartnews|@epochtimes|@dcexaminer|@nro|@fdrlst")) %>% 
+  filter(party_id == "2") %>% 
+  group_by(first_name, last_name) %>% 
+  summarize(count= n()) %>% 
+  arrange(desc(count))
+```
+```{r}
+#This code shows the top Republican politicians who retweeted from our list of left-leaning news outlets. We got 13 Republican politicians who met this criteria. Rep. Don Bacon (R-NE), Rep. Adam Kinzinger (R-IL) and Rep. Michael McCaul (R-TX) were the most prolific tweet authors on this list, although these numbers were very small
+#In order to find and rank Republican tweet authors, we used the same sequence of str_detect, filter and then group_by, summarize and arrange.
+
+retweets %>% 
+  filter(str_detect(lowercase_content, "@huffpost|@thedailybeast|@slate|@voxdotcom|@msnbc|@theintercept")) %>% 
+  filter(party_id == "2") %>% 
+  group_by(first_name, last_name) %>% 
+  summarize(count= n()) %>% 
+  arrange(desc(count))
+```
+```{r}
+#This code shows the top Republican politicians who retweeted from our list of mainstream news outlets. We got 144 Republican politicians who met this criteria. Sen. Ted Cruz (R-TX), Rep. Don Bacon (R-NE) and Rep. Matt Gaetz (R-FL) were the most prolific tweet authors on this list.
+#In order to find and rank Republican tweet authors, we used the same sequence of str_detect, filter and then group_by, summarize and arrange.
+retweets %>% 
+  filter(str_detect(lowercase_content, "@nytimes|@washingtonpost|@latimes|@abc|@nbcnews|@cnn|@politico|@thehill")) %>% 
+  filter(party_id == "2") %>% 
+  group_by(first_name, last_name) %>% 
+  summarize(count= n()) %>% 
+  arrange(desc(count))
+```
+
+```{r}
+# For this code block we used string detect to filter for re tweets from right leaning publications. We then put another filter to see just democrats' tweets. There are 20 democratic politicians who re tweeted these right leaning outlets. Chris Murphy, Ruben Gallego and Chris Coons were the three politicians who re tweeted the most from these outlets.
+retweets %>% 
+  filter(str_detect(lowercase_content, "@newsmax|@oann|@foxnews|@realdailywire|@breitbartnews|@epochtimes|@dcexaminer|@nro|@fdrlst")) %>% 
+  filter(party_id == "1") %>% 
+  group_by(first_name, last_name) %>% 
+  summarize(count= n()) %>% 
+  arrange(desc(count))
+```
+```{r}
+# For this code block we used string detect to filter for re tweets from left leaning publications. We then put another filter to see just democrats' tweets. There are 111 democratic politicians who re tweeted these right leaning outlets. Joaquin Castro, Ayanna	Pressley and Eric	Swalwell were the three politicians who re tweeted the most from these outlets.
+retweets %>% 
+  filter(str_detect(lowercase_content, "@huffpost|@thedailybeast|@slate|@voxdotcom|@msnbc|@theintercept")) %>% 
+  filter(party_id == "1") %>% 
+  group_by(first_name, last_name) %>% 
+  summarize(count= n()) %>% 
+  arrange(desc(count))
+```
+```{r}
+#For this code block we used string detect to filter for re tweets from mainstream publications. We then put another filter to see just democrats' tweets. There are 185 democratic politicians who re tweeted these right leaning outlets. Joaquin	Castro, Pramila Jayapal and Norma	Torres were the three politicians who re tweeted the most from these outlets.
+retweets %>% 
+  filter(str_detect(lowercase_content, "@nytimes|@washingtonpost|@latimes|@abc|@nbcnews|@cnn|@politico|@thehill")) %>% 
+  filter(party_id == "1") %>% 
+  group_by(first_name, last_name) %>% 
+  summarize(count= n()) %>% 
+  arrange(desc(count))
+```
+
+```{r}
+#We tried to see how often politicians retweet accounts not for other politicians, news organizations, or government/political institutional accounts, but we had trouble filtering out all the accounts. Also, we concluded that it's difficult to define "ordinary." We used !str_detect to filter out the names of the publications on our lists, as well as @rep and @sen to avoid other politicians' accounts. We also started filtering out some other accounts that showed up when we did our initial search, but there were too many accounts to filter them all out individually. We might abandon that part of the question.
+combined_tweets_new %>% 
+  filter(str_detect(lowercase_content, "rt @")) %>% 
+    filter(!str_detect(lowercase_content, "@nytimes|@washingtonpost|@latimes|@abc|@nbcnews|@cnn|@politico|@thehill|@huffpost|@thedailybeast|@slate|@voxdotcom|@msnbc|@theintercept|@newsmax|@oann|@foxnews|@realdailywire|@breitbartnews|@epochtimes|@dcexaminer|@nro|@fdrlst|@rep|@sen|@HouseGOP|@SteveScalise|@houseforeign"))
+  
+```
+
+What politicians tweeted the most from right-leaning news outlets?
+
+
+
+
+
+```
+```{r}
+
+```
+
+  
+
+
+DOBBS
+```{r}
+combined_tweets_new %>% 
+filter(str_detect(content, "Dobbs")) %>% 
+  group_by(user_name) %>% 
+  summarize(count = n()) %>% 
+  arrange(desc(count)) 
 ```
