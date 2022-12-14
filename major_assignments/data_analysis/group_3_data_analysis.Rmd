@@ -4,20 +4,28 @@ group: Will Beltran, Sarah Siock, Jamille Whitlow and Stephanie Quinn
 output: html_document
 date: "2022-11-12"
 ---
+We decided to analyze the dataset containing politicians' tweets. We merged it with FEC data on campaign contributions.
 
-We decided to use the 2021 and 2022 datasets on politicians’ election tweets. We plan to merge it with data on campaign contributions.
+Our Questions:
+1. How many politicians tweeted keywords about election fraud in the time period we are analyzing? Did more Republicans or Democrats tweet about it?
+2. What are politicians re-tweeting? Do Democratic politicians retweet from progressive-leaning publications? Do Republican politicians retweet from conservative-leaning ones? 
+3. In cases of candidates with personal and official campaign Twitter accounts, how did content on candidates’ personal accounts differ from content on their campaign accounts? Did keywords about election fraud show up on both accounts, or on one more than the other?
+4. How are different politicians using Twitter with regard to engagement with other users? Who are the politicians that mostly use their accounts to mention or retweet other users? Which politicians just use Twitter to make announcements?
+(Originally, we wanted to examine how politicians used Twitter to endorse other candidates, but we decided to replace this question because it would have been too difficult to isolate tweets with endorsements.)
+5. Were there any tweets that seem to have had major effects on candidates’ contribution numbers or amounts?
 
-Limitations or flaws:
-The data does not contain the number of followers for each account. Nor does it contain the number of likes, retweets or replies for each tweet.
+#MOST NEWSWORTHY FINDINGS: 
+#Sen. Ted Cruz (R-TX) raised the largest amount of money the day he appeared on Fox News and said,
+"Joe Biden and Kamala Harris are the last mile of the human trafficking network that's resulting in the abuse of thousands of little boys, thousands of little girls." Cruz was likening the Biden and Harris administration's immigration and border policies to human trafficking. Some people who donated to Cruz that day had never donated to him before, although they had donated to other Republican-aligned causes.
 
-If we wanted to analyze the impact of particular tweets or tweet terms on engagement with politicians’ Twitter accounts - and if the number of tweets and politicians was manageable enough - we could look up the tweets on Twitter and create a new column to show numbers of likes and retweets. We could do this to compare engagement with tweets using certain phrases or on certain topics.
+#Claims of election fraud were fueled by Republican politicians, but a significant number of Democrats tweeted about it as well (to debunk it). We think this is significant because it suggests that Republicans' claims had a noticeable impact on both Republicans' and Democrats' conversations in the run-up to the general elections. 
 
-Things we might not be able to answer (with our current knowledge):
-We’ve only started to dive into the world of text analysis, but we think we’ll have to figure out how to find the incidence of particular words or phrases across tweets in order to answer some of our questions. We were able to use tidytext to find the most common words and bigrams in the data, which will help us select a topic to focus on, but we haven’t figured out how to search for particular words. We attempted to find codes that would allow us to complete this type of analysis and came across the verb grepl. However, none of us were able to run grepl due to it not loading completely. It is possible we did not have the correct package installed to run grepl.
+#It appears that politicians were more likely to tweet about election fraud from official accounts than personal accounts. This is not what we would have expected. 
 
-Also, we’re not sure exactly how to measure change in tweeting behavior over time. We checked the data type of the timestamp column and found that it is <dttm>, which we’ve never used before. Are there any tips we should know if we want to measure change over time?
+#Even though Republicans occupy the top spots for most prolific tweeters, as a whole, Democrats tweet more than Republicans.
 
-Our exploratory analysis:
+
+#Exploratory analysis and preparing the data:
 ```{r}
 install.packages("tidytext")
 ```
@@ -25,8 +33,8 @@ install.packages("tidytext")
 library(tidyverse)
 library(janitor)
 library(tidytext)
+library(textfeatures)
 ```
-
 ```{r}
 #EXPLORING THE DATA
 # The 2021 tweet dataframe has 12 columns and 557,987 rows, and the 2022 tweet dataframe has 12 columns and 429,093 rows.
@@ -35,7 +43,6 @@ tweets_2021 <- read_csv("tweets2021.csv")
 tweets_2022 <- read_csv("tweets_2022.csv")
 
 ```
-
 ```{r}
 # In the 2021 data, Sen. Ted Cruz (R-TX) tweeted the most, with 7,864 tweets. Sen. John Cornyn (R-TX) was close behind, with 6,948 tweets.
 tweets_2021 %>% 
@@ -54,6 +61,9 @@ tweets_2022 %>%
 ```{r}
 # The combined 2021 and 2022 dataframe has 987,080 rows and 12 variables.
 combined_tweets <- bind_rows(tweets_2021, tweets_2022)
+
+combined_tweets <- combined_tweets %>% 
+  mutate(content = gsub("http.*","", content))
 ```
 ```{r}
 #Cruz, Bacon and Cornyn dominated the combined tweet dataframe, at first, second and third most prolific. Sen. Marco Rubio (R-FL) is also a major tweeter. Rep. Pramila Jayapal (D-WA) came in at number 5.
@@ -76,15 +86,12 @@ combined_tweets %>%
   summarize(count=n()) %>% 
   arrange(desc(count))
 ```
-```{r}
-#We drew on the text analysis textbook chapter to identify the most common words, preparing the data first.
-#combined_tweets <- combined_tweets %>%
- # mutate(content = gsub("http.*","", content))
 
+```{r}
+#PREPARING THE DATA FOR TEXT ANALYSIS
 unique_words <- combined_tweets %>% select(content) %>%
   unnest_tokens(word, content)
 ```
-
 ```{r}
 #These words were common, but not very telling. 
 unique_words %>%
@@ -100,12 +107,12 @@ unique_words %>%
   tally(sort=TRUE)
 ```
 ```{r}
-#Finding common words in 2021 data only. We're not sure why this data appears to be the same as the combined dataframe text analysis. So we decided to find common words in the 2022 data.
+#Finding common words in 2021 data only. 
 tweets_2021_2 <- tweets_2021 %>%
   mutate(content = gsub("http.*","", content))
 ```
 ```{r}
-tweets_2021_2 <- combined_tweets %>% select(content) %>%
+tweets_2021_2 <- tweets_2021_2 %>% select(content) %>%
   unnest_tokens(word, content)
 ```
 ```{r}
@@ -116,12 +123,12 @@ tweets_2021_2 %>%
 
 ```
 ```{r}
-#Finding common tweets in 2022 data only. This data is different from the combined dataframe text analysis. But we still don't understandwhy the 2022 data don't appear to be taken account of in the text analysis for the combined tweets.
+#Finding common tweets in 2022 data only. 
 tweets_2022_2 <- tweets_2022 %>%
   mutate(content = gsub("http.*","", content))
 ```
 ```{r}
-tweets_2022_2 <- combined_tweets %>% select(content) %>%
+tweets_2022_2 <- tweets_2022_2 %>% select(content) %>%
   unnest_tokens(word, content)
 ```
 ```{r}
@@ -132,9 +139,8 @@ tweets_2022_2 %>%
 
 
 ```
-
 ```{r}
-# We also tried a bigram analysis on the combined data, which showed lots of politicians offering their condolences to Rep. Jamie Raskin (D-MD) after he lost his son to suicide a few days before the Jan. 6 insurrection. Were these tweets from the time between Raskin's son's suicide and the insurrection? We were struck that the most common bigrams were not about the insurrection itself. We wondered if the trigrams would show anything different, but we were unable to get the code to work.
+# We also tried a bigram analysis on the combined data, which showed lots of politicians offering their condolences to Rep. Jamie Raskin (D-MD) after he lost his son to suicide a few days before the Jan. 6 insurrection. Were these tweets from the time between Raskin's son's suicide and the insurrection? We were struck that the most common bigrams were not about the insurrection itself. 
 combined_tweets %>%
   filter(created < '2021-01-01') %>%
   unnest_tokens(bigram, content, token = "ngrams", n = 2) %>%
@@ -147,13 +153,15 @@ combined_tweets %>%
   mutate(percent = (n/sum(n))*100) %>%
   top_n(10)
 ```
-ELECTION FRAUD
 
+--------%-%-
+
+#QUESTION 1: We found that Republicans (373) tweeted about election fraud more than Democrats (243), although Democrats tweeted about election fraud a considerable amount (to debunk it). Ted Cruz and Mo Brooks, a representative from Alabama, were the top Republican tweeters about election fraud. Joaquin Castro, a representative from Texas, and Bill Pascrell, a representative from New Jersey, were the top Democratic tweeters about election fraud.
 ```{r}
 #QUESTION 1
-#How many politicians tweeted keywords about our topic in the time period we are analyzing? Did more Republicans or Democrats tweet about it?
+#How many politicians tweeted keywords about election fraud in the time period we are analyzing? Did more Republicans or Democrats tweet about it?
 
-#First, we lowercased the content column to better search the politicians' tweets. Then we filters for terms relevant to election fraud and saved the result as a new dataframe.
+#First, we lowercased the content column to better search the politicians' tweets. Then we filtered for terms relevant to election fraud and saved the result as a new dataframe.
 combined_tweets_new <-
   combined_tweets %>% 
   mutate(lowercase_content = str_to_lower(content))
@@ -164,20 +172,19 @@ filter(str_detect(lowercase_content, "stop the steal|election fraud|voter fraud|
 ```
 ```{r}
 glimpse(fraud_tweets)
-
 ```
 ```{r}
 #We got a list of all politicians in the data who authored tweets containing our search terms. In order to do this, we filtered for tweets containing those terms and then used group_by and summarize to show the authors of the tweets in order of how many tweets they tweeted.
 fraud_tweets %>% 
-filter(str_detect(lowercase_content, "election fraud|stop the steal|voter fraud|harvesting|ballot harvesting")) %>% 
+filter(str_detect(lowercase_content, "stop the steal|election fraud|voter fraud|ballot harvesting|#stopthesteal|#ballotharvesting")) %>% 
   group_by(first_name, last_name) %>% 
   summarize(count = n()) %>% 
   arrange(desc(count))
 ```
 ```{r}
-#We found the number of tweets containing our search terms that were authored by Republicans by using filter and summarize. There are 365 tweets in the data that contain one of our search terms and were tweeted by Republicans.
+#We found the number of tweets containing our search terms that were authored by Republicans by using filter and summarize. There are 373 tweets in the data that contain one of our search terms and were tweeted by Republicans.
 fraud_tweets %>% 
-filter(str_detect(lowercase_content, "election fraud|stop the steal|voter fraud|harvesting|ballot harvesting")) %>% 
+filter(str_detect(lowercase_content, "stop the steal|election fraud|voter fraud|ballot harvesting|#stopthesteal|#ballotharvesting")) %>% 
   filter(party_id == "2") %>% 
   summarize(count = n()) 
   
@@ -185,42 +192,50 @@ filter(str_detect(lowercase_content, "election fraud|stop the steal|voter fraud|
 ```{r}
 #We followed the same steps as in the previous codeblock, but for Democrats. There are 243 tweets that contain our search terms and were authored by Democrats. 
 fraud_tweets %>% 
-filter(str_detect(lowercase_content, "election fraud|stop the steal|voter fraud|harvesting|ballot harvesting")) %>% 
+filter(str_detect(lowercase_content, "stop the steal|election fraud|voter fraud|ballot harvesting|#stopthesteal|#ballotharvesting")) %>% 
   filter(party_id == "1") %>% 
   summarize(count = n()) 
 ```
 ```{r}
-#To find the number of Republican politicians responsible for the 365 tweets, we filtered by our search terms and then by party. Then we used group_by and summarize and got a list of Republicans who tweeted on election fraud and how many tweets each one authored. The tibble shows us that there are 110 Republicans on this list.
+#To find the number of Republican politicians responsible for the 365 tweets, we filtered by our search terms and then by party. Then we used group_by and summarize and got a list of Republicans who tweeted on election fraud and how many tweets each one authored. The tibble shows us that there are 111 Republicans on this list.
 fraud_tweets %>% 
-filter(str_detect(lowercase_content, "election fraud|stop the steal|voter fraud|harvesting|ballot harvesting")) %>% 
+filter(str_detect(lowercase_content, "stop the steal|election fraud|voter fraud|ballot harvesting|#stopthesteal|#ballotharvesting")) %>% 
   filter(party_id == "2") %>% 
   group_by(first_name, last_name) %>% 
-  summarize(count = n())
+  summarize(count = n()) %>% 
+  arrange(desc(count))
 ```
 
 ```{r}
 #We repeated the same steps as above for Democrats and got 86 Democrats who tweeted using our search terms. 
 
 fraud_tweets %>% 
-filter(str_detect(lowercase_content, "election fraud|stop the steal|voter fraud|harvesting|ballot harvesting")) %>% 
+filter(str_detect(lowercase_content, "stop the steal|election fraud|voter fraud|ballot harvesting|#stopthesteal|#ballotharvesting")) %>% 
   filter(party_id == "1") %>% 
   group_by(first_name, last_name) %>% 
-  summarize(count = n())
+  summarize(count = n()) %>% 
+  arrange(desc(count))
 ```
 ```{r}
 #One independent also tweeted using our search terms. So, more Republicans than Democrats tweeted about election fraud, but the number of Democrats was significant. We think they were probably debunking election fraud claims. We find it interesting that this many Democrats are tweeting about a topic that was fueled by Republicans and alt-right conspiracies.
 fraud_tweets %>% 
-filter(str_detect(lowercase_content, "election fraud|stop the steal|voter fraud|harvesting|ballot harvesting")) %>% 
+filter(str_detect(lowercase_content, "stop the steal|election fraud|voter fraud|ballot harvesting|#stopthesteal|#ballotharvesting")) %>% 
   filter(party_id == "3") %>% 
   group_by(first_name, last_name) %>% 
-  summarize(count = n())
+  summarize(count = n()) %>% 
+  arrange(desc(count))
 ```
 
+
+
+--------%-%-
+
+#Question 2: While Democratic politicians were more likely to retweet from mainstream publications than left-leaning publications, Republican politicians were more likely to retweet from right-leaning publications than mainstream publications. Neither group was very inclined to retweet from publications leaning toward the opposite end of the political spectrum.
 ```{r}
 #QUESTION 2
-#What are politicians re-tweeting? Do Democratic politicians retweet from progressive-leaning publications? Do Republican politicians retweet from conservative-leaning ones? Do politicians share ordinary people’s tweets?
+#What are politicians re-tweeting? Do Democratic politicians retweet from progressive-leaning publications? Do Republican politicians retweet from conservative-leaning ones? 
 
-(#Add code to find qt's?)
+#We used str_detect to isolate retweets from our combined dataframe.
 retweets <- combined_tweets_new %>% 
   filter(str_detect(lowercase_content, "rt @"))
 ```
@@ -257,7 +272,7 @@ retweets %>%
 ```
 
 ```{r}
-# For this code block we used string detect to filter for re tweets from right leaning publications. We then put another filter to see just democrats' tweets. There are 20 democratic politicians who re tweeted these right leaning outlets. Chris Murphy, Ruben Gallego and Chris Coons were the three politicians who re tweeted the most from these outlets.
+# This code block shows the Democratic politicians who retweeted most from right-leaning publications. We used str_detect, then put another filter to see just Democrats' tweets. There are 20 Democratic politicians who retweeted these right-leaning outlets. Chris Murphy, Ruben Gallego and Chris Coons were the three politicians who retweeted the most from these outlets.
 retweets %>% 
   filter(str_detect(lowercase_content, "@newsmax|@oann|@foxnews|@realdailywire|@breitbartnews|@epochtimes|@dcexaminer|@nro|@fdrlst")) %>% 
   filter(party_id == "1") %>% 
@@ -266,7 +281,7 @@ retweets %>%
   arrange(desc(count))
 ```
 ```{r}
-# For this code block we used string detect to filter for re tweets from left leaning publications. We then put another filter to see just democrats' tweets. There are 111 democratic politicians who re tweeted these right leaning outlets. Joaquin Castro, Ayanna	Pressley and Eric	Swalwell were the three politicians who re tweeted the most from these outlets.
+# For this code block we used string detect to filter for Democratic re tweets from left leaning publications. We then put another filter to see just democrats' tweets. There are 111 democratic politicians who re tweeted these right leaning outlets. Joaquin Castro, Ayanna	Pressley and Eric	Swalwell were the three politicians who re tweeted the most from these outlets.
 retweets %>% 
   filter(str_detect(lowercase_content, "@huffpost|@thedailybeast|@slate|@voxdotcom|@msnbc|@theintercept")) %>% 
   filter(party_id == "1") %>% 
@@ -275,7 +290,7 @@ retweets %>%
   arrange(desc(count))
 ```
 ```{r}
-#For this code block we used string detect to filter for re tweets from mainstream publications. We then put another filter to see just democrats' tweets. There are 185 democratic politicians who re tweeted mainstream outlets. Joaquin	Castro, Pramila Jayapal and Norma	Torres were the three politicians who re tweeted the most from these outlets.
+#For this code block we used string detect to filter for Democratic re tweets from mainstream publications. We then put another filter to see just democrats' tweets. There are 185 democratic politicians who re tweeted mainstream outlets. Joaquin	Castro, Pramila Jayapal and Norma	Torres were the three politicians who re tweeted the most from these outlets.
 retweets %>% 
   filter(str_detect(lowercase_content, "@nytimes|@washingtonpost|@latimes|@abc|@nbcnews|@cnn|@politico|@thehill")) %>% 
   filter(party_id == "1") %>% 
@@ -284,56 +299,84 @@ retweets %>%
   arrange(desc(count))
 ```
 
+
+--------%-%-
+
+#Question 3: We learned that politicians tweeted more often about election fraud from personal accounts than official accounts.
 ```{r}
-#We tried to see how often politicians retweet accounts not for other politicians, news organizations, or government/political institutional accounts, but we had trouble filtering out all the accounts. Also, we concluded that it's difficult to define "ordinary." We used !str_detect to filter out the names of the publications on our lists, as well as @rep and @sen to avoid other politicians' accounts. We also started filtering out some other accounts that showed up when we did our initial search, but there were too many accounts to filter them all out individually. We might abandon that part of the question.
-combined_tweets_new %>% 
-  filter(str_detect(lowercase_content, "rt @")) %>% 
-    filter(!str_detect(lowercase_content, "@nytimes|@washingtonpost|@latimes|@abc|@nbcnews|@cnn|@politico|@thehill|@huffpost|@thedailybeast|@slate|@voxdotcom|@msnbc|@theintercept|@newsmax|@oann|@foxnews|@realdailywire|@breitbartnews|@epochtimes|@dcexaminer|@nro|@fdrlst|@rep|@sen|@HouseGOP|@SteveScalise|@houseforeign"))
-  
-```
-```{r}
+#QUESTION 3: In cases of candidates with personal and official campaign Twitter accounts, how did content on candidates’ personal accounts differ from content on their campaign accounts? Did keywords about election fraud show up on both accounts, or on one more than the other?
+
 #In order to figure out which accounts are official versus personal, we did a filter and str_detect for Cruz and cruz, since we knew Ted Cruz has two accounts. The account with the account_type_id 1 linked to a book Cruz wrote, while the account labeled 2 links to his official Senate page. So we're pretty confident 2 is for official accounts.
 combined_tweets_new %>% 
   filter(str_detect(user_name, "Cruz|cruz"))
 ```
 ```{r}
-#QUESTION 3: In cases of candidates with personal and official campaign Twitter accounts, how did content on candidates’ personal accounts differ from content on their campaign accounts? Did keywords about our topic show up on both accounts, or on one more than the other?
-
 #Within fraud_tweets, 28 different personal accounts are represented. In order to figure this out, we grouped by user_name, filtered for account type 1 and counted the results.
 fraud_tweets %>% 
   group_by(user_name) %>% 
   filter(account_type_id == 1) %>% 
   summarize(count = n())
-
-#There are 185 different official accounts represented in fraud_tweets. People who did tweet about election fraud were not shy about doing so on their official accounts.
+```
+```{r}
+#There are a total of 134 distinct personal accounts in the data. We used the same method as above, but with our full dataframe of tweets. So 20.9% of personal accounts had at least one election fraud tweet.
+combined_tweets_new %>% 
+  filter(account_type_id == 1) %>% 
+  group_by(user_name) %>% 
+  summarize(count = n())
+```
+```{r}
+#There are 185 different official accounts represented in fraud_tweets. 
 fraud_tweets %>% 
   group_by(user_name) %>% 
   filter(account_type_id == 2) %>% 
   summarize(count = n())
+```
+```{r}
+#There are 522 distinct official accounts in the data. So 35.4% of official accounts had at least one election fraud tweet. Election fraud tweets were more likely to come from official accounts than personal ones.
+combined_tweets_new %>% 
+  filter(account_type_id == 2) %>% 
+  group_by(user_name) %>% 
+  summarize(count = n())
 
 ```
 ```{r}
-#how many politicians in fraud_tweets have both personal and official accounts?
-```
-```{r}
-#There were 115 tweets from personal accounts using our terms about election fraud. We filtered for account type 1 and then did filter and string detect for our search terms. The 28 personal account holders in fraud_tweets tweeted, on average, 4.1 times about election fraud (115/28).
+#There were 115 tweets from personal accounts using our terms about election fraud. We filtered for account type 1 and then did filter and string detect for our search terms. The 28 personal account holders in fraud_tweets tweeted, on average, 4.1 times about election fraud (115/28). Joaquin Castro tweeted about election fraud the most from his personal account (17 times), followed by Tom Cotton (15) and Ted Cruz (11). So the top three accounted for 37.4% of election fraud tweets from personal accounts.
 fraud_tweets %>% 
   filter(account_type_id == 1) %>% 
-  filter(str_detect(lowercase_content, "stop the steal|election fraud|voter fraud|ballot harvesting|#stopthesteal|#ballotharvesting"))
+  filter(str_detect(lowercase_content, "stop the steal|election fraud|voter fraud|ballot harvesting|#stopthesteal|#ballotharvesting")) %>%
+  summarize(count = n())
+  
+  
+fraud_tweets %>% 
+  filter(account_type_id == 1) %>% 
+  filter(str_detect(lowercase_content, "stop the steal|election fraud|voter fraud|ballot harvesting|#stopthesteal|#ballotharvesting")) %>%
+  group_by(user_name, first_name, last_name) %>% 
+  summarize(count = n()) %>% 
+  arrange(desc(count)) 
 ```
 ```{r}
-#There were 501 tweets from official accounts using our terms about election fraud. We filtered for account type 2 and then did filter and string detect for our search terms. The 185 different official account holders in fraud_tweets tweeted, on average, 2.7 times about election fraud (501/185).
+#There were 501 tweets from official accounts using our terms about election fraud. We filtered for account type 2 and then did filter and string detect for our search terms. The 185 different official account holders in fraud_tweets tweeted, on average, 2.7 times about election fraud (501/185). Mo Brooks tweeted the most about election fraud from his official account (30 times), followed by Ted Cruz (29) and Claudia Tenney (17). 
+
 fraud_tweets %>% 
   filter(account_type_id == 2) %>% 
   filter(str_detect(lowercase_content, "stop the steal|election fraud|voter fraud|ballot harvesting|#stopthesteal|#ballotharvesting"))
-```
-```{r}
-#QUESTION 4: What proportion of candidates’ election tweets were endorsements for other candidates? How many of those endorsed candidates were in different states or were running for different offices (such as someone running for the House endorsing a Senate candidate)? Were there cases where these endorsements seem to have had a significant effect on contributions to the author of the tweet or the politician they endorsed?
 
-#We decided not to do our original question 4 because it would be too difficult to islate tweets with endorsements.
+fraud_tweets %>% 
+  filter(account_type_id == 2) %>% 
+  filter(str_detect(lowercase_content, "stop the steal|election fraud|voter fraud|ballot harvesting|#stopthesteal|#ballotharvesting")) %>%
+  group_by(user_name, first_name, last_name) %>% 
+  summarize(count = n()) %>% 
+  arrange(desc(count)) 
+```
+
+
+--------%-%-
+
+#Question 4: Even though Republicans occupy the top spots for most prolific tweeters, as a whole, Democrats tweet more than Republicans. 
+```{r}
+#We decided not to do our original question 4 because it would be too difficult to isolate tweets with endorsements.
 
 #NEW QUESTION 4: How are different politicians using Twitter with regard to engagement with other users? Who are the politicians that mostly use their accounts to mention or retweet other users? Which politicians just use Twitter to make announcements?
-
 
 combined_tweets_new %>% 
   group_by(last_name, first_name) %>% 
@@ -341,7 +384,7 @@ combined_tweets_new %>%
   arrange(desc(count))
 ```
 ```{r}
-#In order to figure out whether Rep. Dwight Evans (R-PA) tends to retweet or otherwise engage with followers and other users, we filtered for his tweets and then did a string detect for "rt @" in the content column. Of Evans' 10,150 tweets, he retweeted in 6,744 - well over half.
+#We picked Dwight Evans partly to focus on a prominent Twitter politician other than Ted Cruz. To get a feel for how Evans engaged with followers and other users, we first filtered for his tweets and then did a string detect for "rt @" in the content column. Of Evans' 10,150 tweets, he retweeted in 6,744 - well over half.
 evans_tweets <- combined_tweets_new %>% 
   filter(first_name == "Dwight",
          last_name == "Evans")
@@ -351,7 +394,7 @@ evans_tweets %>%
   filter(str_detect(lowercase_content, "rt @"))
 ```
 ```{r}
-#We filtered for Evans' tweets that mentioned other accounts but were not retweets. We got 1,638 tweets, meaning that 8,382 of Evans' 10,150 tweets were retweets or mentions of other accounts. Combined with the large number of retweets, this suggests that Evans uses Twitter with the intention of engaging in conversations with other users, or perhaps telegraphing whom he associates himself with. Most of Evans' tweets are not original content.
+#We filtered for Evans' tweets that mentioned other accounts but were not retweets. We got 1,638 tweets, meaning that 8,382 of Evans' 10,150 tweets were retweets or mentions of other accounts and 1,638 were original content. Combined with the large number of retweets, this suggests that Evans uses Twitter with the intention of engaging in conversations with other users, or perhaps telegraphing whom he associates himself with. Most of Evans' tweets are not original content.
 evans_tweets %>% 
   filter(str_detect(lowercase_content, "@")) %>% 
   filter(!str_detect(lowercase_content, "^rt"))
@@ -362,16 +405,200 @@ cornyn_tweets <- combined_tweets_new %>%
          last_name == "Cornyn")
 ```
 ```{r}
-# Sen. John Cornyn (R-TX) had 5,649 retweets out of a total 11,707. Compared to Evans, who had 66% retweets, Cornyn had 48% retweets.
+# We decided to look at John Cornyn's tweets because he is another major Twitter-using politician other than Ted Cruz. Sen. John Cornyn (R-TX) had 5,649 retweets out of a total 11,707. Compared to Evans, who had 66% retweets, Cornyn had 48% retweets.
 cornyn_tweets %>% 
   filter(str_detect(lowercase_content, "rt @"))
 ```
 ```{r}
-# mentions
-x <- cornyn_tweets %>% filter(str_detect(lowercase_content,"@")) %>% filter(!str_detect(lowercase_content,"^rt"))
+#In order to more systematically categorize types of Twitter behavior, we divided our politicians into quartiles. This allowed us to isolate those who tweeted or retweeted the most and those who tweeted or retweeted the least.
+
+#We made a separate tibble showing how many retweets each politician had, as well as their party affiliation and state. To do this, we used ifelse to label whether each row was or was not a retweet. Then we filtered for only the retweets and counted how many retweets each user had.
+is_retweets <- combined_tweets_new %>%
+  mutate(is_rt = ifelse(str_detect(lowercase_content, "rt @"), 1, 0)) 
+
+is_retweets <- is_retweets %>% 
+  filter(is_rt == 1) %>% 
+  group_by(user_name, party_id, state, first_name, last_name) %>% 
+  summarize(retweet_count = n())
+
+is_tweets <- combined_tweets_new %>% 
+  group_by(user_name, party_id, state, first_name, last_name) %>% 
+  summarize(tweet_count = n())
+
+#We used summary to figure out the beginning and end points of each quartile. We used these numbers in the following code blocks.
+summary(is_retweets)
 ```
 ```{r}
-#QUESTION 5: Were there any tweets about our topic that seem to have had major effects on candidates’ contribution numbers or amounts?
+#FIRST QUARTILE: RETWEETS
+#There were more Republicans (91) than Democrats in the first quartile of retweeters.
+is_retweets %>% 
+  filter(retweet_count <= 49)
+# 159 accounts in the first quartile of retweets
+
+is_retweets %>% 
+  filter(retweet_count <= 49) %>% 
+  filter(party_id == 1)
+#67 Democrats were in the first quartile for retweets
+
+is_retweets %>% 
+  filter(retweet_count <= 49) %>% 
+  filter(party_id == 2)
+#91 Republicans were in the first quartile for retweets
+```
+```{r}
+# SECOND AND THIRD QUARTILE: RETWEETS
+#There were more Democrats (162) than Republicans (147) in the middle quartiles, although not by a whole lot.
+is_retweets %>% 
+  filter(retweet_count > 49 & retweet_count <= 389.8)
+# 310 accounts in the middle two quartiles of retweets
+
+is_retweets %>% 
+  filter(retweet_count > 49 & retweet_count <= 389.8) %>% 
+  filter(party_id == 1)
+# 162 Democrats were in the first quartile for retweets
+
+is_retweets %>% 
+  filter(retweet_count > 49 & retweet_count <= 389.8) %>% 
+  filter(party_id == 2)
+# 147 Republicans were in the first quartile for retweets
+
+```
+```{r}
+# FOURTH QUARTILE: RETWEETS
+# Somewhat surprisingly, even though Republicans occupied the top spots for retweeters overall, there were more Democrats (88) than Republicans (69) in the fourth quartile for retweets.
+is_retweets %>% 
+  filter(retweet_count > 389.8)
+# 157 accounts in the fourth quartile of retweets
+
+is_retweets %>% 
+  filter(retweet_count > 389.8) %>% 
+  filter(party_id == 1)
+# 88 Democrats were in the first quartile for retweets
+
+is_retweets %>% 
+  filter(retweet_count > 389.8) %>% 
+  filter(party_id == 2)
+# 69 Republicans were in the first quartile for retweets
+```
+```{r}
+# FIRST QUARTILE: TOTAL TWEETS
+#We used summary again to find the limits of each quartile.
+summary(is_tweets) 
+
+#More Republicans (92) than Democrats (73) are in the first quartile for total tweets.
+
+is_tweets %>% 
+  filter(tweet_count <= 457)
+#  165 accounts were in the first quartile for total tweets.
+
+is_tweets %>% 
+  filter(tweet_count <= 457) %>% 
+  filter(party_id == 1)
+# 73 Democrats in the first quartile for total tweets.
+
+is_tweets %>% 
+  filter(tweet_count <= 457) %>% 
+  filter(party_id == 2)
+# 92 Republicans in the first quartile for total tweets.
+
+```
+```{r}
+
+# SECOND AND THIRD QUARTILES: TOTAL TWEETS
+
+is_tweets %>% 
+  filter(tweet_count > 457 & tweet_count <= 2037)
+#  328 accounts were in the first quartile for total tweets.
+
+is_tweets %>% 
+  filter(tweet_count > 457 & tweet_count <= 2037) %>% 
+  filter(party_id == 1)
+# 158 Democrats in the first quartile for total tweets.
+
+is_tweets %>% 
+  filter(tweet_count > 457 & tweet_count <= 2037) %>% 
+  filter(party_id == 2)
+# 168 Republicans in the first quartile for total tweets.
+
+```
+```{r}
+
+# FOURTH QUARTILE: TOTAL TWEETS
+#There were a lot more Democrats (102) than Republicans (102) in the fourth quartile for total tweets.
+
+is_tweets %>% 
+  filter(tweet_count > 2037)
+#  164 accounts were in the first quartile for total tweets.
+
+is_tweets %>% 
+  filter(tweet_count > 2037) %>% 
+  filter(party_id == 1)
+# 102 Democrats in the first quartile for total tweets.
+
+is_tweets %>% 
+  filter(tweet_count > 2037) %>% 
+  filter(party_id == 2)
+# 62 Republicans in the first quartile for total tweets.
+```
+
+```{r}
+#MEDIAN RETWEETS
+median(is_retweets$retweet_count)
+
+# The overall median number of retweets is 174. We decided to use the median instead of the mean, because the top retweeters had so many retweets that they skewed the data away from a more "normal" number of retweets.
+
+glimpse(is_retweets)
+
+is_retweets %>% 
+  ungroup() %>% 
+  filter(party_id == 1) %>% 
+  summarize(median(retweet_count))
+# For Democrats, the median number of retweets was 216.
+
+is_retweets %>% 
+  ungroup() %>% 
+  filter(party_id == 2) %>% 
+  summarize(median(retweet_count))
+# For Republicans, the median number of retweets was 144.
+
+# MEDIAN TOTAL TWEETS
+median(is_tweets$tweet_count)
+# The overall median number of tweets is 1,276.
+
+is_tweets %>% 
+  ungroup() %>% 
+  filter(party_id == 1) %>% 
+  summarize(median(tweet_count))
+# For Democrats, the median number of tweets was 1,534. This is a lot more than the median number of tweets for Republicans (see below).
+
+is_tweets %>% 
+  ungroup() %>% 
+  filter(party_id == 2) %>% 
+  summarize(median(tweet_count))
+# For Republicans, the median number of retweets was 953.
+
+```
+
+```{r}
+# FIRST QUARTILE RETWEETERS
+is_retweets %>% 
+  filter(retweet_count <= 49) %>% 
+  arrange(retweet_count) 
+#Chuck Schumer, Mitch McConnell, Kamala Harris, and Ron DeSantis are on this list. These are high-profile politicians in positions of particular power. Maybe they are more cautious in what they retweet to avoid controversy or already have a "brand" that they don't need to establish with retweets.
+  
+# FOURTH QUARTILE RETWEETERS
+is_retweets %>% 
+  filter(retweet_count > 389.8) %>% 
+  arrange(desc(retweet_count))
+#Dwight Evans, John Cornyn, Joaquin Castro, Ted Cruz and Don Bacon were among the major retweeters in the data. This group contains three major politicians from Texas. 
+```
+
+--------%-%-
+
+#Question 5: Sen. Ted Cruz (R-TX) raised the largest amount of money the day he appeared on Fox News and said,
+"Joe Biden and Kamala Harris are the last mile of the human trafficking network that's resulting in the abuse of thousands of little boys, thousands of little girls." Cruz was likening the Biden and Harris administration's immigration and border policies to human trafficking. Some people who donated to Cruz that day had never donated to him before, although they had donated to other Republican-aligned causes.
+```{r}
+#QUESTION 5: Were there any tweets that seem to have had major effects on candidates’ contribution numbers or amounts?
 
 #We decided to look at FEC data for the politicians who were the most prolific tweeters. We started with Ted Cruz, so we read in the csv files of his receipt data.
 cruz_receipts <- read_csv("~/Documents/GitHub/Group3.reverse_enginerring/major_assignments/data_analysis/cruz_receipts.csv")
@@ -407,12 +634,30 @@ cruz_largest_amount <- combined_tweets_new %>%
          last_name == "Cruz",
          str_detect(created, "^2021-06-30"))
 ```
-
 ```{r}
+cruz_receipts <- cruz_receipts %>% 
+  mutate(contribution_receipt_date = as.Date(contribution_receipt_date)) %>% 
+  filter(contribution_receipt_date == "2021-06-30") %>% 
+  arrange(desc(contribution_receipt_amount))
+
+#William Cooley, one of the top contributors on June 30, 2021, gave the maximum allowable contribution of $5800 and then tried to give $2900 more, but that amount was returned to him. This was the only day Cooley contributed to Cruz, making it plausible that Cruz's tweet inspired him to give. We checked the FEC contribution data for Cooley's contributions to Cruz or other campaigns going back to 2016, and he did not contribute to Cruz before. He did contribute to the other Republican causes, such as the Keeping America Great PAC and the Courageous Conservatives PAC, as well as Republican Alek Skarlatos' campaign to represent Oregon in the House.
+cruz_receipts %>% 
+  filter(contributor_name == "COOLEY, WILLIAM")
+
+#Joan Hogan, another top contributor for Ted Cruz on the day he made the most money, gave $2900. She hadn't contributed to Cruz before, but we searched the FEC database to find that had given to Republican candidates such as Randy Feenstra's campaign to represent Iowa in the House and House Minority Leader Kevin McCarthy, since 2014.
+cruz_receipts %>% 
+  filter(contributor_name == "HOGAN, JOAN")
+
+#Patrick Hogan, who has the same address as Joan, also donated $2900. He had not contributed to Cruz before, but he did contribute to the National Republican Congressional Committee and Darin LaHood, a Republican House member from Illinois.
+cruz_receipts %>% 
+  filter(contributor_name == "HOGAN, PATRICK")
+```
+```{r}
+#We chose to look next at Rep. Pramila Jayapal (D-WA) because she was both a top tweeter and a Democrat. Most of the other politicians we examined were Republicans.
 jayapal_receipts <- read_csv("~/Documents/GitHub/Group3.reverse_enginerring/major_assignments/data_analysis/jayapal_receipts.csv")
 ```
 ```{r}
-#The day with the largest number of contributions was Sept. 30, 2022. In order to get this date, we grouped by receipt date, counted the number of contributions for each day, totaled the amounts received, and then arranged the days in order of contribution amount.
+#The day with the largest number of contributions was Sept. 30, 2022. In order to get this date, we grouped by receipt date, counted the number of contributions for each day, totaled the amounts received, and then arranged the days in order of contribution amount. We didn't see a particular indication that her tweets influenced her fundraising.
 
 jayapal_receipts %>% 
   group_by(contribution_receipt_date) %>% 
@@ -445,6 +690,7 @@ jayapal_largest_amount <- combined_tweets_new %>%
 ```
 
 ```{r}
+# We looked at Rep. Don Bacon (D-NE), another Republican top tweeter.
 bacon_receipts <- read_csv("~/Documents/GitHub/Group3.reverse_enginerring/major_assignments/data_analysis/bacon_receipts.csv")
 ```
 ```{r}
@@ -455,7 +701,6 @@ bacon_receipts %>%
             contribution_receipt_amount = sum(contribution_receipt_amount)) %>% 
   arrange(desc(number_contributions))
 ```
-
 ```{r}
 #The day with the largest contribution amount was the same as the day Bacon got the largest number of contributions: Dec. 2, 2021. In order to get this date, we grouped by receipt date, counted the number of contributions for each day, totaled the amounts received, and then arranged the days in order of contribution amount.
 bacon_receipts %>% 
@@ -464,8 +709,6 @@ bacon_receipts %>%
             contribution_receipt_amount = sum(contribution_receipt_amount)) %>% 
   arrange(desc(contribution_receipt_amount))
 ```
-
-
 ```{r}
 #On the day Bacon got the largest number and highest amount of contributions, he tweeted about a wide variety of issues, from Russia and Israel to the Capitol Christmas tree. Bacon also mentioned Nebraska more than the other politicians mentioned their states. Ted Cruz tweets a lot about the border and immigration, but this is a national as well as state issue.
 bacon_most_contributions <- combined_tweets_new %>% 
@@ -473,26 +716,7 @@ bacon_most_contributions <- combined_tweets_new %>%
          last_name == "Bacon",
          str_detect(created, "^2021-12-02"))
 ```
-
 ```{r}
 #We noticed that Bacon tweeted in support of the American Israel Public Affairs Committee on the day he received the largest number and amount of contributions, and that AIPAC contributed to his campaign. We used filter and string detect to find all contributions from pro-Israel committees, and then used summarize to find that he received $177,323 from these groups.
 bacon_receipts %>%  filter(str_detect(contributor_name, "ISRAEL"))%>% summarise(sum(contribution_receipt_amount))
 ```
-
-```{r}
-
-#MOST NEWSWORTHY: Sen. Ted Cruz (R-TX) raised the largest amount of money the day he appeared on Fox News and said,
-"Joe Biden and Kamala Harris are the last mile of the human trafficking network that's resulting in the abuse of thousands of little boys, thousands of little girls." Cruz was likening the Biden and Harris administration's immigration and border policies to human trafficking. We think this is newsworthy because it suggests that Cruz's supporters agree with this statement and possibly that it makes them feel that they are doing a good thing by contributing to Cruz.
-
-#WHERE WE'RE GOING: Next week, we would like to more systematically compare different politicians' numbers of total tweets, retweets and mentions that were not retweets. Are there obvious outliers? And what buckets can divide them into? Is there a distinction between Republicans and Democrats? What conclusions can we draw from the trends we see?
-
-#THINGS WE'VE LEARNED SO FAR: Claims of election fraud were fueled by Republican politicians, but a significant number of Democrats tweeted about it as well (to debunk it). We think this is significant because it suggests that Republicans' claims had a noticeable impact on both Republicans' and Democrats' conversations in the run-up to the general elections. It would be interesting to see whether these politicians are talking to other politicians in their election fraud tweets, or whether they are just speaking to their followers or general Twitter users. We could potentially explore this by looking for whether politicians used mentions while tweeting about voter fraud.
-
-#Also, politicians generally retweet from news publications that align with their political affiliations.
-
-#IT appears that politicians were more likely to tweet about election fraud from official accounts than personal accounts. This is not what we would have expected. We can't see this from the data we have, but we were curious whether this is because politicians had more followers on official accounts.
-
---
-[Notes for the future: For each politician add a column with total tweets, total retweets, total mentions. Then look for outliers. What buckets can we put them in? Is it by party lines? Be an anthropologist! What time do they tweet?
-
-Differences between campaign, personal and official accounts? (is that for another question?)]
